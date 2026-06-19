@@ -1,6 +1,6 @@
-import { type ReactNode } from "react";
+import { type ReactNode, type HTMLAttributes } from "react";
 
-interface CardProps {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
   padding?: "sm" | "md" | "lg";
@@ -12,10 +12,11 @@ const paddingMap = {
   lg: "p-6",
 };
 
-export function Card({ children, className = "", padding = "md" }: CardProps) {
+export function Card({ children, className = "", padding = "md", ...props }: CardProps) {
   return (
     <div
       className={`rounded-xl border border-border bg-card ${paddingMap[padding]} ${className}`}
+      {...props}
     >
       {children}
     </div>

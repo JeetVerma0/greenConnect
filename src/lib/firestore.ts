@@ -14,12 +14,13 @@ import {
   increment,
   arrayUnion,
   arrayRemove,
+  onSnapshot,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "./firebase";
 import type { UserProfile } from "@/types/user";
 import type { Report, ReportCategory, ReportStatus } from "@/types/report";
-import type { Team, TeamCategory } from "@/types/team";
+import type { Team, TeamCategory, TeamMessage } from "@/types/team";
 import { computeBadges } from "@/utils/badges";
 import { DEFAULT_LOCATION, ECO_POINTS } from "@/utils/constants";
 import { distanceInKm } from "@/utils/distance";
@@ -78,6 +79,7 @@ function parseTeam(id: string, data: Record<string, unknown>): Team {
     longitude: (data.longitude as number) ?? DEFAULT_LOCATION.lng,
     members: (data.members as string[]) ?? [],
     createdBy: (data.createdBy as string) ?? "",
+    leaderId: (data.leaderId as string) ?? (data.createdBy as string) ?? "",
     issuesResolved: (data.issuesResolved as number) ?? 0,
     createdAt: toDate(data.createdAt as Timestamp),
   };
@@ -291,7 +293,7 @@ export async function resolveReport(
 }
 
 export async function createTeam(
-  data: Omit<Team, "id" | "createdAt" | "members" | "issuesResolved">,
+  data: Omit<Team, "id" | "createdAt" | "members" | "issuesResolved" | "leaderId">,
   userId: string
 ): Promise<Team> {
   const docRef = await addDoc(collection(db, "teams"), {
@@ -302,6 +304,7 @@ export async function createTeam(
     latitude: data.latitude,
     longitude: data.longitude,
     createdBy: data.createdBy,
+    leaderId: userId,
     members: [userId],
     issuesResolved: 0,
     createdAt: serverTimestamp(),
@@ -316,6 +319,7 @@ export async function createTeam(
   return {
     ...data,
     id: docRef.id,
+    leaderId: userId,
     members: [userId],
     issuesResolved: 0,
     createdAt: new Date(),
@@ -350,4 +354,79 @@ export async function getUserReports(userId: string): Promise<Report[]> {
 export async function getUserResolvedReports(userId: string): Promise<Report[]> {
   const all = await getReports();
   return all.filter((r) => r.status === "resolved" && r.createdBy === userId);
+}
+
+export async function getMultipleUserProfiles(uids: string[]): Promise<UserProfile[]> {
+  if (!uids || uids.length === 0) return [];
+  const profiles = await Promise.all(
+    uids.map(async (uid) => {
+      try {
+        if (uid === "demo") {
+          return {
+            uid: "demo",
+            name: "Demo Volunteer",
+            email: "demo@greenconnect.org",
+            ecoScore: 120,
+            badges: ["first_report"],
+            joinedTeams: ["mock-team-1"],
+            createdAt: new Date(),
+          };
+        }
+        const profile = await getUserProfile(uid);
+        return profile;
+      } catch (err) {
+        console.error("Failed to fetch profile for user:", uid, err);
+        return null;
+      }
+    })
+  );
+  return profiles.filter((p): p is UserProfile => p !== null);
+}
+
+export async function createTeamMessage(
+  teamId: string,
+  senderId: string,
+  senderName: string,
+  content: string,
+  type: "chat" | "alert" | "campaign"
+): Promise<TeamMessage> {
+  const docRef = await addDoc(collection(db, "teams", teamId, "messages"), {
+    teamId,
+    senderId,
+    senderName,
+    content,
+    type,
+    createdAt: serverTimestamp(),
+  });
+  return {
+    id: docRef.id,
+    teamId,
+    senderId,
+    senderName,
+    content,
+    type,
+    createdAt: new Date(),
+  };
+}
+
+export function subscribeTeamMessages(teamId: string, callback: (messages: TeamMessage[]) => void) {
+  const q = query(
+    collection(db, "teams", teamId, "messages"),
+    orderBy("createdAt", "asc")
+  );
+  return onSnapshot(q, (snap) => {
+    const messages = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        teamId: data.teamId as string,
+        senderId: data.senderId as string,
+        senderName: data.senderName as string,
+        content: data.content as string,
+        type: (data.type as "chat" | "alert" | "campaign") ?? "chat",
+        createdAt: toDate(data.createdAt as Timestamp),
+      };
+    });
+    callback(messages);
+  });
 }

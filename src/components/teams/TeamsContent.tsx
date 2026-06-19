@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Users, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -16,6 +16,7 @@ import {
 } from "@/utils/geolocation";
 import { useAuth } from "@/context/AuthContext";
 import type { Team, TeamCategory } from "@/types/team";
+import { TeamDetail } from "./TeamDetail";
 
 interface TeamsContentProps {
   teams: Team[];
@@ -24,6 +25,7 @@ interface TeamsContentProps {
 
 export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
   const { firebaseUser, profile, refreshProfile } = useAuth();
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,6 +39,15 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
     category: "general" as TeamCategory,
     radiusKm: "5",
   });
+
+  useEffect(() => {
+    if (selectedTeam) {
+      const updated = teams.find((t) => t.id === selectedTeam.id);
+      if (updated) {
+        setSelectedTeam(updated);
+      }
+    }
+  }, [teams, selectedTeam]);
 
   const filtered = teams.filter((t) =>
     t.name.toLowerCase().includes(search.toLowerCase())
@@ -118,6 +129,19 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
       setLoading(false);
     }
   };
+
+  if (selectedTeam) {
+    return (
+      <TeamDetail
+        team={selectedTeam}
+        onBack={() => {
+          setSelectedTeam(null);
+          onRefresh();
+        }}
+        onRefresh={onRefresh}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 p-4 lg:p-8">
@@ -216,7 +240,12 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
               : 0;
 
           return (
-            <Card key={team.id} padding="lg">
+            <Card
+              key={team.id}
+              padding="lg"
+              className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200"
+              onClick={() => setSelectedTeam(team)}
+            >
               <div className="mb-3 h-24 rounded-lg bg-gradient-to-r from-primary/20 to-surface" />
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -242,7 +271,10 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => handleLeave(team.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleLeave(team.id);
+                    }}
                     disabled={loading || team.id.startsWith("mock-")}
                   >
                     Leave Team
@@ -250,7 +282,10 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
                 ) : (
                   <Button
                     size="sm"
-                    onClick={() => handleJoin(team.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleJoin(team.id);
+                    }}
                     disabled={loading || team.id.startsWith("mock-")}
                   >
                     Join Team

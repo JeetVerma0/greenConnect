@@ -15,6 +15,18 @@ export interface Team {
   longitude: number;
   members: string[];
   createdBy: string;
+  leaderId?: string;
   issuesResolved?: number;
   createdAt: Date;
 }
+
+export interface TeamMessage {
+  id: string;
+  teamId: string;
+  senderId: string;
+  senderName: string;
+  content: string;
+  type: "chat" | "alert" | "campaign";
+  createdAt: Date;
+}
+
