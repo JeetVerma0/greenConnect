@@ -7,6 +7,7 @@ import { signIn } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { getAuthErrorMessage } from "@/utils/auth-errors";
 
 export function LoginForm() {
   const router = useRouter();
@@ -21,9 +22,9 @@ export function LoginForm() {
     setLoading(true);
     try {
       await signIn(email, password);
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to sign in");
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }

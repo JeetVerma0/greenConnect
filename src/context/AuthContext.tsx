@@ -9,6 +9,7 @@ import {
 } from "react";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { ensureUserProfile } from "@/lib/auth";
 import { getUserProfile } from "@/lib/firestore";
 import type { UserProfile } from "@/types/user";
 
@@ -46,7 +47,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (user) {
         try {
           const userProfile = await getUserProfile(user.uid);
-          setProfile(userProfile);
+          if (userProfile) {
+            setProfile(userProfile);
+          } else {
+            const recovered = await ensureUserProfile(user);
+            setProfile(recovered);
+          }
         } catch (err) {
           console.error("Failed to load user profile:", err);
           setProfile(null);

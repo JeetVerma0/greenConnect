@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/Select";
 import { Card } from "@/components/ui/Card";
 import { createReport, uploadImage } from "@/lib/firestore";
 import { REPORT_CATEGORIES } from "@/utils/constants";
+import { getCurrentLocation } from "@/utils/geolocation";
 import { useAuth } from "@/context/AuthContext";
 import type { ReportCategory } from "@/types/report";
 
@@ -26,6 +27,7 @@ export function CreateReportForm() {
   const router = useRouter();
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [error, setError] = useState("");
+  const [locationMessage, setLocationMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const { register, handleSubmit, setValue } = useForm<ReportFormData>({
@@ -37,12 +39,16 @@ export function CreateReportForm() {
     },
   });
 
-  const detectLocation = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((pos) => {
-      setValue("latitude", pos.coords.latitude.toFixed(6));
-      setValue("longitude", pos.coords.longitude.toFixed(6));
-    });
+  const detectLocation = async () => {
+    setLocationMessage("");
+    try {
+      const coords = await getCurrentLocation();
+      setValue("latitude", coords.latitude.toFixed(6));
+      setValue("longitude", coords.longitude.toFixed(6));
+      setLocationMessage("Location detected successfully.");
+    } catch (err) {
+      setLocationMessage(err instanceof Error ? err.message : "Failed to get location");
+    }
   };
 
   const onSubmit = async (data: ReportFormData) => {
@@ -126,6 +132,9 @@ export function CreateReportForm() {
         <Button type="button" variant="secondary" onClick={detectLocation}>
           Use My Location
         </Button>
+        {locationMessage && (
+          <p className="text-xs text-text-secondary">{locationMessage}</p>
+        )}
         {error && <p className="text-sm text-danger">{error}</p>}
         <Button type="submit" disabled={loading}>
           {loading ? "Submitting..." : "Submit Report"}

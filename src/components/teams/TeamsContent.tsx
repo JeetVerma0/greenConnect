@@ -8,7 +8,12 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { CategoryBadge } from "@/components/ui/Badge";
 import { createTeam, joinTeam, leaveTeam } from "@/lib/firestore";
-import { TEAM_CATEGORIES, CITY_COORDS } from "@/utils/constants";
+import { TEAM_CATEGORIES } from "@/utils/constants";
+import {
+  formatCoordinates,
+  getCurrentLocation,
+  type GeoLocation,
+} from "@/utils/geolocation";
 import { useAuth } from "@/context/AuthContext";
 import type { Team, TeamCategory } from "@/types/team";
 
@@ -23,23 +28,45 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
   const [showCreate, setShowCreate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [location, setLocation] = useState<GeoLocation | null>(null);
+  const [locationStatus, setLocationStatus] = useState("");
+  const [detectingLocation, setDetectingLocation] = useState(false);
   const [form, setForm] = useState({
     name: "",
     description: "",
     category: "general" as TeamCategory,
-    city: "delhi",
     radiusKm: "5",
   });
 
-  const filtered = teams.filter(
-    (t) =>
-      t.name.toLowerCase().includes(search.toLowerCase()) ||
-      t.city.toLowerCase().includes(search.toLowerCase())
+  const filtered = teams.filter((t) =>
+    t.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleDetectLocation = async () => {
+    setLocationStatus("");
+    setDetectingLocation(true);
+    try {
+      const coords = await getCurrentLocation();
+      setLocation(coords);
+      setLocationStatus(
+        `Team location: ${formatCoordinates(coords.latitude, coords.longitude)}`
+      );
+    } catch (err) {
+      setLocation(null);
+      setLocationStatus(err instanceof Error ? err.message : "Failed to get location");
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!firebaseUser) return;
+    if (!location) {
+      setError("Set your team location using GPS before creating a team.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
@@ -48,17 +75,18 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
           name: form.name,
           description: form.description,
           category: form.category,
-          city: form.city,
           radiusKm: Number(form.radiusKm),
-          latitude: 0,
-          longitude: 0,
+          latitude: location.latitude,
+          longitude: location.longitude,
           createdBy: firebaseUser.uid,
         },
         firebaseUser.uid
       );
       await refreshProfile();
       setShowCreate(false);
-      setForm({ name: "", description: "", category: "general", city: "delhi", radiusKm: "5" });
+      setForm({ name: "", description: "", category: "general", radiusKm: "5" });
+      setLocation(null);
+      setLocationStatus("");
       onRefresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create team");
@@ -90,11 +118,6 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
       setLoading(false);
     }
   };
-
-  const cityOptions = Object.keys(CITY_COORDS).map((c) => ({
-    value: c,
-    label: c.charAt(0).toUpperCase() + c.slice(1),
-  }));
 
   return (
     <div className="space-y-6 p-4 lg:p-8">
@@ -128,18 +151,12 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
                 className="mt-1.5 w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary"
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Select
                 label="Category"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value as TeamCategory })}
                 options={TEAM_CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
-              />
-              <Select
-                label="City"
-                value={form.city}
-                onChange={(e) => setForm({ ...form, city: e.target.value })}
-                options={cityOptions}
               />
               <Input
                 label="Coverage Radius (km)"
@@ -150,6 +167,32 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
                 onChange={(e) => setForm({ ...form, radiusKm: e.target.value })}
               />
             </div>
+            <div className="rounded-lg border border-border bg-surface p-4">
+              <p className="text-sm font-medium">Team location</p>
+              <p className="mt-1 text-xs text-text-secondary">
+                Set where your team operates using your current GPS position.
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="mt-3"
+                onClick={handleDetectLocation}
+                disabled={detectingLocation}
+              >
+                <MapPin className="h-4 w-4" />
+                {detectingLocation ? "Detecting..." : "Use My Location"}
+              </Button>
+              {locationStatus && (
+                <p
+                  className={`mt-2 text-xs ${
+                    location ? "text-primary" : "text-text-secondary"
+                  }`}
+                >
+                  {locationStatus}
+                </p>
+              )}
+            </div>
             {error && <p className="text-sm text-danger">{error}</p>}
             <Button type="submit" disabled={loading}>
               {loading ? "Creating..." : "Create Team"}
@@ -159,7 +202,7 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
       )}
 
       <Input
-        placeholder="Search teams by name or city..."
+        placeholder="Search teams by name..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
@@ -187,7 +230,7 @@ export function TeamsContent({ teams, onRefresh }: TeamsContentProps) {
                   <Users className="h-4 w-4" /> {team.members.length} members
                 </span>
                 <span className="flex items-center gap-1">
-                  <MapPin className="h-4 w-4" /> {team.city} · {team.radiusKm}km
+                  <MapPin className="h-4 w-4" /> {team.radiusKm} km radius
                 </span>
               </div>
               <div className="mt-3 flex gap-4 text-sm">

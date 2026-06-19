@@ -24,17 +24,7 @@ export const REPORT_STATUS_FILTERS = [
   { value: "resolved", label: "Resolved" },
 ] as const;
 
-export const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
-  delhi: { lat: 28.6139, lng: 77.209 },
-  mumbai: { lat: 19.076, lng: 72.8777 },
-  bangalore: { lat: 12.9716, lng: 77.5946 },
-  chennai: { lat: 13.0827, lng: 80.2707 },
-  kolkata: { lat: 22.5726, lng: 88.3639 },
-  hyderabad: { lat: 17.385, lng: 78.4867 },
-  pune: { lat: 18.5204, lng: 73.8567 },
-};
-
-export const DEFAULT_CITY = "delhi";
+export const DEFAULT_LOCATION = { lat: 28.6139, lng: 77.209 };
 
 export const ECO_POINTS = {
   REPORT: 10,

@@ -2,7 +2,8 @@ export interface UserProfile {
   uid: string;
   name: string;
   email: string;
-  city: string;
+  latitude?: number;
+  longitude?: number;
   photoURL?: string;
   ecoScore: number;
   badges: string[];

@@ -10,7 +10,6 @@ export interface Team {
   name: string;
   description: string;
   category: TeamCategory;
-  city: string;
   radiusKm: number;
   latitude: number;
   longitude: number;

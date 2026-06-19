@@ -6,21 +6,14 @@ import Link from "next/link";
 import { signUp } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { Card } from "@/components/ui/Card";
-import { CITY_COORDS } from "@/utils/constants";
-
-const cityOptions = Object.keys(CITY_COORDS).map((city) => ({
-  value: city,
-  label: city.charAt(0).toUpperCase() + city.slice(1),
-}));
+import { getAuthErrorMessage } from "@/utils/auth-errors";
 
 export function SignupForm() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [city, setCity] = useState("delhi");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -29,10 +22,10 @@ export function SignupForm() {
     setError("");
     setLoading(true);
     try {
-      await signUp(email, password, name, city);
-      router.push("/dashboard");
+      await signUp(email, password, name);
+      router.replace("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create account");
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -68,12 +61,6 @@ export function SignupForm() {
           required
           minLength={6}
           placeholder="At least 6 characters"
-        />
-        <Select
-          label="City"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          options={cityOptions}
         />
         {error && <p className="text-sm text-danger">{error}</p>}
         <Button type="submit" disabled={loading} className="w-full">

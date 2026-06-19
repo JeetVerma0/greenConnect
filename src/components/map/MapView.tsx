@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/Badge";
 import { distanceInKm } from "@/utils/distance";
+import { getCurrentLocation } from "@/utils/geolocation";
 import type { Report } from "@/types/report";
 import type { Team } from "@/types/team";
 
@@ -22,11 +23,13 @@ export function MapView({ reports, teams }: MapViewProps) {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+    getCurrentLocation()
+      .then((coords) => {
+        setUserLocation({ lat: coords.latitude, lng: coords.longitude });
+      })
+      .catch(() => {
+        // Map falls back to default center when GPS is unavailable.
       });
-    }
   }, []);
 
   const distance =

@@ -22,7 +22,6 @@ export function ProfileContent() {
         <div className="mt-4 sm:mt-0 sm:ml-6">
           <h1 className="text-2xl font-semibold">{profile?.name ?? "Volunteer"}</h1>
           <p className="text-text-secondary">{profile?.email}</p>
-          <p className="mt-1 text-sm capitalize text-text-secondary">{profile?.city}</p>
         </div>
         <div className="mt-4 flex gap-6 sm:ml-auto sm:mt-0">
           <div className="text-center">

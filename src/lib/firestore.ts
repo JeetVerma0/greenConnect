@@ -21,7 +21,7 @@ import type { UserProfile } from "@/types/user";
 import type { Report, ReportCategory, ReportStatus } from "@/types/report";
 import type { Team, TeamCategory } from "@/types/team";
 import { computeBadges } from "@/utils/badges";
-import { CITY_COORDS, DEFAULT_CITY, ECO_POINTS } from "@/utils/constants";
+import { DEFAULT_LOCATION, ECO_POINTS } from "@/utils/constants";
 import { distanceInKm } from "@/utils/distance";
 import { MOCK_REPORTS, MOCK_TEAMS } from "./mock-data";
 
@@ -35,7 +35,8 @@ function parseUser(id: string, data: Record<string, unknown>): UserProfile {
     uid: id,
     name: (data.name as string) ?? "",
     email: (data.email as string) ?? "",
-    city: (data.city as string) ?? DEFAULT_CITY,
+    latitude: data.latitude as number | undefined,
+    longitude: data.longitude as number | undefined,
     photoURL: data.photoURL as string | undefined,
     ecoScore: (data.ecoScore as number) ?? 0,
     badges: (data.badges as string[]) ?? [],
@@ -72,10 +73,9 @@ function parseTeam(id: string, data: Record<string, unknown>): Team {
     name: (data.name as string) ?? "",
     description: (data.description as string) ?? "",
     category: (data.category as TeamCategory) ?? "general",
-    city: (data.city as string) ?? DEFAULT_CITY,
     radiusKm: (data.radiusKm as number) ?? 5,
-    latitude: (data.latitude as number) ?? CITY_COORDS[DEFAULT_CITY].lat,
-    longitude: (data.longitude as number) ?? CITY_COORDS[DEFAULT_CITY].lng,
+    latitude: (data.latitude as number) ?? DEFAULT_LOCATION.lat,
+    longitude: (data.longitude as number) ?? DEFAULT_LOCATION.lng,
     members: (data.members as string[]) ?? [],
     createdBy: (data.createdBy as string) ?? "",
     issuesResolved: (data.issuesResolved as number) ?? 0,
@@ -85,13 +85,20 @@ function parseTeam(id: string, data: Record<string, unknown>): Team {
 
 export async function createUserProfile(
   uid: string,
-  data: { name: string; email: string; city: string; photoURL?: string }
+  data: {
+    name: string;
+    email: string;
+    photoURL?: string;
+    latitude?: number;
+    longitude?: number;
+  }
 ) {
   await setDoc(doc(db, "users", uid), {
     name: data.name,
     email: data.email,
-    city: data.city,
     photoURL: data.photoURL ?? null,
+    latitude: data.latitude ?? null,
+    longitude: data.longitude ?? null,
     ecoScore: 0,
     badges: [],
     joinedTeams: [],
@@ -287,13 +294,14 @@ export async function createTeam(
   data: Omit<Team, "id" | "createdAt" | "members" | "issuesResolved">,
   userId: string
 ): Promise<Team> {
-  const cityKey = data.city.toLowerCase();
-  const coords = CITY_COORDS[cityKey] ?? CITY_COORDS[DEFAULT_CITY];
-
   const docRef = await addDoc(collection(db, "teams"), {
-    ...data,
-    latitude: coords.lat,
-    longitude: coords.lng,
+    name: data.name,
+    description: data.description,
+    category: data.category,
+    radiusKm: data.radiusKm,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    createdBy: data.createdBy,
     members: [userId],
     issuesResolved: 0,
     createdAt: serverTimestamp(),
@@ -308,8 +316,6 @@ export async function createTeam(
   return {
     ...data,
     id: docRef.id,
-    latitude: coords.lat,
-    longitude: coords.lng,
     members: [userId],
     issuesResolved: 0,
     createdAt: new Date(),
