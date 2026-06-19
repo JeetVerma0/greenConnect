@@ -8,6 +8,7 @@ export function ReportDetailPageClient({ id }: { id: string }) {
   const [teamName, setTeamName] = useState<string>();
   const [report, setReport] = useState<Awaited<ReturnType<typeof getReportById>>>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -20,7 +21,7 @@ export function ReportDetailPageClient({ id }: { id: string }) {
       setLoading(false);
     }
     load();
-  }, [id]);
+  }, [id, refreshTrigger]);
 
   if (loading) {
     return (
@@ -38,5 +39,5 @@ export function ReportDetailPageClient({ id }: { id: string }) {
     );
   }
 
-  return <ReportDetail report={report} teamName={teamName} />;
+  return <ReportDetail report={report} teamName={teamName} onUpdate={async () => setRefreshTrigger(t => t + 1)} />;
 }

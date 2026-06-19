@@ -1,6 +1,7 @@
 "use client";
 
-import { MapContainer as LeafletMap, TileLayer, Marker, Popup, Circle } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer as LeafletMap, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import type { Report } from "@/types/report";
 import type { Team } from "@/types/team";
@@ -23,11 +24,39 @@ const userIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
+const getReportIcon = (category: string) => {
+  const emojiMap: Record<string, string> = {
+    waste: "🗑️",
+    water: "💧",
+    air: "💨",
+    infrastructure: "🏗️",
+    wildlife: "🦊"
+  };
+  const emoji = emojiMap[category] || "📍";
+  
+  return L.divIcon({
+    className: "custom-report-icon",
+    html: `<div style="background: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 6px rgba(0,0,0,0.3); font-size: 18px; border: 2px solid #22C55E; margin-top: -16px; margin-left: -16px;">${emoji}</div>`,
+    iconSize: [0, 0], // Size is handled by the div styling to allow centered positioning
+    iconAnchor: [0, 0],
+    popupAnchor: [0, -16],
+  });
+};
+
 interface MapContainerProps {
   reports: Report[];
   teams: Team[];
   userLocation: { lat: number; lng: number } | null;
   onSelectReport: (report: Report) => void;
+  onLocationChange?: (location: { lat: number; lng: number }) => void;
+}
+
+function MapUpdater({ center }: { center: { lat: number; lng: number } }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([center.lat, center.lng], map.getZoom());
+  }, [center.lat, center.lng, map]);
+  return null;
 }
 
 export default function MapContainer({
@@ -35,6 +64,7 @@ export default function MapContainer({
   teams,
   userLocation,
   onSelectReport,
+  onLocationChange,
 }: MapContainerProps) {
   const center = userLocation ?? { lat: 28.6139, lng: 77.209 };
 
@@ -45,41 +75,54 @@ export default function MapContainer({
       className="h-full w-full"
       scrollWheelZoom
     >
+      <MapUpdater center={center} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
       {userLocation && (
-        <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
-          <Popup>Your location</Popup>
-        </Marker>
+        <>
+          <Marker
+            position={[userLocation.lat, userLocation.lng]}
+            icon={userIcon}
+            draggable={!!onLocationChange}
+            eventHandlers={{
+              dragend: (e) => {
+                const marker = e.target;
+                const position = marker.getLatLng();
+                if (onLocationChange) {
+                  onLocationChange({ lat: position.lat, lng: position.lng });
+                }
+              },
+            }}
+          >
+            <Popup>Your location (Drag to adjust)</Popup>
+          </Marker>
+          <Circle
+            center={[userLocation.lat, userLocation.lng]}
+            radius={10000} // 10km radius
+            pathOptions={{ color: "#3B82F6", fillColor: "#3B82F6", fillOpacity: 0.05, weight: 1, dashArray: "5, 5" }}
+          />
+        </>
       )}
 
       {reports.map((report) => (
         <Marker
           key={report.id}
           position={[report.latitude, report.longitude]}
-          icon={reportIcon}
+          icon={getReportIcon(report.category)}
           eventHandlers={{
             click: () => onSelectReport(report),
           }}
         >
           <Popup>
-            <strong>{report.title}</strong>
-            <br />
-            {report.category} · {report.status}
+            <div className="text-center">
+              <strong className="block mb-1">{report.title}</strong>
+              <span className="text-xs text-text-secondary capitalize">{report.category} · {report.status}</span>
+            </div>
           </Popup>
         </Marker>
-      ))}
-
-      {teams.map((team) => (
-        <Circle
-          key={team.id}
-          center={[team.latitude, team.longitude]}
-          radius={team.radiusKm * 1000}
-          pathOptions={{ color: "#22C55E", fillColor: "#22C55E", fillOpacity: 0.08 }}
-        />
       ))}
     </LeafletMap>
   );

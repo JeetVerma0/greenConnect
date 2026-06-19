@@ -13,9 +13,10 @@ import type { Report } from "@/types/report";
 interface ReportDetailProps {
   report: Report;
   teamName?: string;
+  onUpdate?: () => Promise<void>;
 }
 
-export function ReportDetail({ report, teamName }: ReportDetailProps) {
+export function ReportDetail({ report, teamName, onUpdate }: ReportDetailProps) {
   const { firebaseUser, refreshProfile } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -32,6 +33,7 @@ export function ReportDetail({ report, teamName }: ReportDetailProps) {
     try {
       await verifyReport(report.id, firebaseUser.uid);
       await refreshProfile();
+      if (onUpdate) await onUpdate();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verification failed");
@@ -49,12 +51,29 @@ export function ReportDetail({ report, teamName }: ReportDetailProps) {
     setLoading(true);
     setError("");
     try {
-      const url = await uploadImage(
-        `reports/${firebaseUser.uid}/after-${Date.now()}-${afterFile.name}`,
-        afterFile
-      );
+      const url = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(afterFile);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target?.result as string;
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const MAX_WIDTH = 800;
+            const scaleSize = MAX_WIDTH / img.width;
+            canvas.width = MAX_WIDTH;
+            canvas.height = img.height * scaleSize;
+            const ctx = canvas.getContext("2d");
+            ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.7));
+          };
+          img.onerror = (e) => reject(e);
+        };
+        reader.onerror = (e) => reject(e);
+      });
       await resolveReport(report.id, firebaseUser.uid, url);
       await refreshProfile();
+      if (onUpdate) await onUpdate();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resolution failed");
@@ -105,22 +124,30 @@ export function ReportDetail({ report, teamName }: ReportDetailProps) {
 
       {report.status !== "resolved" && (
         <Card className="space-y-4">
-          <h2 className="font-medium">Actions</h2>
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={handleVerify} disabled={loading} variant="secondary">
-              Verify Report
+          <h2 className="font-medium text-lg border-b border-border pb-2">Take Action</h2>
+          
+          <div className="pt-2">
+            <Button onClick={handleVerify} disabled={loading} variant="secondary" className="w-full sm:w-auto">
+              ✓ Verify This Report
             </Button>
+            <p className="mt-1 text-xs text-text-secondary">
+              Verifying confirms that this issue is real and helps increase its priority.
+            </p>
           </div>
+
           <div className="border-t border-border pt-4">
-            <p className="mb-2 text-sm text-text-secondary">Upload after image to resolve</p>
+            <h3 className="font-medium mb-1">Resolve Issue</h3>
+            <p className="mb-3 text-sm text-text-secondary">
+              Have you fixed this problem? Upload a photo showing the cleaned or fixed area to mark it as resolved and earn Eco Points!
+            </p>
             <input
               type="file"
               accept="image/*"
               onChange={(e) => setAfterFile(e.target.files?.[0] ?? null)}
-              className="mb-3 block w-full text-sm text-text-secondary"
+              className="mb-3 block w-full text-sm text-text-secondary file:mr-4 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary hover:file:bg-primary/20"
             />
-            <Button onClick={handleResolve} disabled={loading || !afterFile}>
-              Resolve Issue
+            <Button onClick={handleResolve} disabled={loading || !afterFile} className="w-full sm:w-auto">
+              Upload & Mark as Resolved
             </Button>
           </div>
           {error && <p className="text-sm text-danger">{error}</p>}

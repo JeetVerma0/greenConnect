@@ -22,6 +22,8 @@ interface ReportFormData {
   longitude: string;
 }
 
+const generateId = () => Math.random().toString(36).substring(2, 15);
+
 export function CreateReportForm() {
   const { firebaseUser, refreshProfile } = useAuth();
   const router = useRouter();
@@ -58,10 +60,27 @@ export function CreateReportForm() {
     try {
       let imageBefore: string | undefined;
       if (imageFile) {
-        imageBefore = await uploadImage(
-          `reports/${firebaseUser.uid}/${Date.now()}-${imageFile.name}`,
-          imageFile
-        );
+        // Compress image to base64 to bypass Firebase Storage CORS/Bucket issues
+        imageBefore = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(imageFile);
+          reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              const MAX_WIDTH = 800;
+              const scaleSize = MAX_WIDTH / img.width;
+              canvas.width = MAX_WIDTH;
+              canvas.height = img.height * scaleSize;
+              const ctx = canvas.getContext("2d");
+              ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL("image/jpeg", 0.7));
+            };
+            img.onerror = (e) => reject(e);
+          };
+          reader.onerror = (e) => reject(e);
+        });
       }
 
       const report = await createReport(

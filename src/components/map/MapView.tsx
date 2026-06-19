@@ -19,18 +19,46 @@ interface MapViewProps {
 }
 
 export function MapView({ reports, teams }: MapViewProps) {
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(() => {
+    if (typeof window !== "undefined") {
+      const savedLoc = localStorage.getItem("greenconnect_user_location");
+      if (savedLoc) {
+        try {
+          const parsed = JSON.parse(savedLoc);
+          if (parsed && typeof parsed.lat === "number" && typeof parsed.lng === "number") {
+            return parsed;
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return null;
+  });
+  
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [locationLoading, setLocationLoading] = useState(() => userLocation === null);
 
   useEffect(() => {
+    if (userLocation) return; // already loaded from local storage
+
     getCurrentLocation()
       .then((coords) => {
-        setUserLocation({ lat: coords.latitude, lng: coords.longitude });
+        const loc = { lat: coords.latitude, lng: coords.longitude };
+        setUserLocation(loc);
+        localStorage.setItem("greenconnect_user_location", JSON.stringify(loc));
+        setLocationLoading(false);
       })
-      .catch(() => {
-        // Map falls back to default center when GPS is unavailable.
+      .catch((err) => {
+        console.error("Location error:", err); // use it so lint is happy
+        setLocationLoading(false);
       });
-  }, []);
+  }, [userLocation]);
+
+  const handleLocationChange = (loc: { lat: number; lng: number }) => {
+    setUserLocation(loc);
+    localStorage.setItem("greenconnect_user_location", JSON.stringify(loc));
+  };
 
   const distance =
     selectedReport && userLocation
@@ -40,6 +68,17 @@ export function MapView({ reports, teams }: MapViewProps) {
         }).toFixed(1)
       : null;
 
+  if (locationLoading) {
+    return (
+      <div className="flex h-[calc(100vh-8rem)] items-center justify-center lg:h-[calc(100vh-5rem)]">
+        <div className="flex flex-col items-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="mt-4 text-text-secondary">Getting your current location...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-[calc(100vh-8rem)] lg:h-[calc(100vh-5rem)]">
       <MapContainer
@@ -47,6 +86,7 @@ export function MapView({ reports, teams }: MapViewProps) {
         teams={teams}
         userLocation={userLocation}
         onSelectReport={setSelectedReport}
+        onLocationChange={handleLocationChange}
       />
 
       {selectedReport && (
