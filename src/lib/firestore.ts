@@ -36,6 +36,7 @@ function parseUser(id: string, data: Record<string, unknown>): UserProfile {
     uid: id,
     name: (data.name as string) ?? "",
     email: (data.email as string) ?? "",
+    bio: data.bio as string | undefined,
     latitude: data.latitude as number | undefined,
     longitude: data.longitude as number | undefined,
     photoURL: data.photoURL as string | undefined,
@@ -409,24 +410,50 @@ export async function createTeamMessage(
   };
 }
 
-export function subscribeTeamMessages(teamId: string, callback: (messages: TeamMessage[]) => void) {
-  const q = query(
-    collection(db, "teams", teamId, "messages"),
-    orderBy("createdAt", "asc")
+export function subscribeTeamMessages(
+  teamId: string,
+  callback: (messages: TeamMessage[]) => void,
+  errorCallback?: (error: Error) => void
+) {
+  const q = collection(db, "teams", teamId, "messages");
+  return onSnapshot(
+    q,
+    (snap) => {
+      const messages = snap.docs
+        .map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            teamId: data.teamId as string,
+            senderId: data.senderId as string,
+            senderName: data.senderName as string,
+            content: data.content as string,
+            type: (data.type as "chat" | "alert" | "campaign") ?? "chat",
+            createdAt: toDate(data.createdAt as Timestamp),
+          };
+        })
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      callback(messages);
+    },
+    (err) => {
+      console.error("Subscription failed:", err);
+      if (errorCallback) errorCallback(err);
+    }
   );
-  return onSnapshot(q, (snap) => {
-    const messages = snap.docs.map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        teamId: data.teamId as string,
-        senderId: data.senderId as string,
-        senderName: data.senderName as string,
-        content: data.content as string,
-        type: (data.type as "chat" | "alert" | "campaign") ?? "chat",
-        createdAt: toDate(data.createdAt as Timestamp),
-      };
-    });
-    callback(messages);
+}
+
+export async function updateUserProfile(
+  uid: string,
+  data: {
+    name?: string;
+    bio?: string;
+    photoURL?: string;
+    latitude?: number;
+    longitude?: number;
+  }
+) {
+  const ref = doc(db, "users", uid);
+  await updateDoc(ref, {
+    ...data,
   });
 }

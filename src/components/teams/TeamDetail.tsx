@@ -38,6 +38,58 @@ interface TeamDetailProps {
 
 type MessageFilter = "all" | "chat" | "alert" | "campaign";
 
+const MOCK_MESSAGES: Record<string, TeamMessage[]> = {
+  "mock-team-1": [
+    {
+      id: "mmsg-1",
+      teamId: "mock-team-1",
+      senderId: "another-user",
+      senderName: "Aarav Sharma",
+      content: "Hey team! Glad to join the Green Delhi Warriors.",
+      type: "chat",
+      createdAt: new Date(Date.now() - 3600000 * 2),
+    },
+    {
+      id: "mmsg-2",
+      teamId: "mock-team-1",
+      senderId: "demo",
+      senderName: "Demo Volunteer",
+      content: "Welcome Aarav! We have a major cleanup planned for this weekend.",
+      type: "chat",
+      createdAt: new Date(Date.now() - 3600000),
+    },
+    {
+      id: "mmsg-3",
+      teamId: "mock-team-1",
+      senderId: "another-user-2",
+      senderName: "Priya Patel",
+      content: "Severe trash build-up reported near the metro station exit. Let's address this first.",
+      type: "alert",
+      createdAt: new Date(Date.now() - 1800000),
+    },
+  ],
+  "mock-team-2": [
+    {
+      id: "mmsg-4",
+      teamId: "mock-team-2",
+      senderId: "demo",
+      senderName: "Demo Volunteer",
+      content: "Welcome to River Guardians! Let's protect our local waterways.",
+      type: "chat",
+      createdAt: new Date(Date.now() - 3600000 * 5),
+    },
+    {
+      id: "mmsg-5",
+      teamId: "mock-team-2",
+      senderId: "water-watcher",
+      senderName: "Rahul Verma",
+      content: "River cleaning campaign scheduled near the bank this Saturday at 8 AM. Bring gloves!",
+      type: "campaign",
+      createdAt: new Date(Date.now() - 3600000 * 3),
+    },
+  ],
+};
+
 export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailProps) {
   const { firebaseUser, profile, refreshProfile } = useAuth();
   const [team, setTeam] = useState<Team>(initialTeam);
@@ -49,9 +101,13 @@ export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailP
   const [messageType, setMessageType] = useState<"chat" | "alert" | "campaign">("chat");
   const [filter, setFilter] = useState<MessageFilter>("all");
   const [actionLoading, setActionLoading] = useState(false);
+  const [messageError, setMessageError] = useState("");
 
-  const isMember = profile?.joinedTeams?.includes(team.id) || false;
-  const isLeader = firebaseUser && team.leaderId === firebaseUser.uid;
+  // Robust membership checks: check both direct team members list and profile joinedTeams array
+  const isMember =
+    (firebaseUser && team.members?.includes(firebaseUser.uid)) ||
+    (profile?.joinedTeams?.includes(team.id)) ||
+    false;
 
   // Track the current team state locally when operations happen
   useEffect(() => {
@@ -71,16 +127,29 @@ export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailP
       .finally(() => setLoadingMembers(false));
   }, [team.members]);
 
-  // Subscribe to real-time team messages if the user is a member
+  // Subscribe to real-time team messages or load mock messages
   useEffect(() => {
-    if (!isMember || team.id.startsWith("mock-")) {
+    if (!isMember) {
       setMessages([]);
       return;
     }
 
-    const unsubscribe = subscribeTeamMessages(team.id, (msgs) => {
-      setMessages(msgs);
-    });
+    if (team.id.startsWith("mock-")) {
+      setMessages(MOCK_MESSAGES[team.id] || []);
+      return;
+    }
+
+    const unsubscribe = subscribeTeamMessages(
+      team.id,
+      (msgs) => {
+        setMessages(msgs);
+        setMessageError("");
+      },
+      (err) => {
+        console.error("Failed to load real-time messages:", err);
+        setMessageError(`Database read error: ${err.message}`);
+      }
+    );
 
     return () => unsubscribe();
   }, [team.id, isMember]);
@@ -132,12 +201,31 @@ export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailP
     if (!firebaseUser || !messageText.trim() || !isMember) return;
 
     setSending(true);
+    const senderName = profile?.name || firebaseUser.displayName || "Volunteer";
+
     try {
-      const senderName = profile?.name || firebaseUser.displayName || "Volunteer";
-      await createTeamMessage(team.id, firebaseUser.uid, senderName, messageText.trim(), messageType);
-      setMessageText("");
+      if (team.id.startsWith("mock-")) {
+        // Simulate posting on a mock team locally
+        const newMessage: TeamMessage = {
+          id: `mmsg-mock-${Date.now()}`,
+          teamId: team.id,
+          senderId: firebaseUser.uid,
+          senderName,
+          content: messageText.trim(),
+          type: messageType,
+          createdAt: new Date(),
+        };
+        setMessages((prev) => [...prev, newMessage]);
+        setMessageText("");
+        setMessageError("");
+      } else {
+        await createTeamMessage(team.id, firebaseUser.uid, senderName, messageText.trim(), messageType);
+        setMessageText("");
+        setMessageError("");
+      }
     } catch (err) {
       console.error("Failed to send message:", err);
+      setMessageError(`Failed to send message: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSending(false);
     }
@@ -283,15 +371,7 @@ export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailP
 
             {/* Messages feed area */}
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin">
-              {team.id.startsWith("mock-") ? (
-                <div className="flex flex-col items-center justify-center h-full text-text-secondary py-12 text-center">
-                  <MessageSquare className="h-12 w-12 text-border mb-3" />
-                  <p className="font-medium text-sm">Demo Data Team Mode</p>
-                  <p className="text-xs max-w-xs mt-1">
-                    This is a placeholder mock team. Create a real team to test the real-time communications dashboard!
-                  </p>
-                </div>
-              ) : filteredMessages.length === 0 ? (
+              {filteredMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-text-secondary py-12">
                   <MessageSquare className="h-10 w-10 text-border mb-2" />
                   <p className="text-sm">No messages, alerts, or campaigns in this filter yet.</p>
@@ -358,8 +438,13 @@ export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailP
             </div>
 
             {/* Compose Message Form */}
-            {isMember && !team.id.startsWith("mock-") && (
+            {isMember && (
               <form onSubmit={handleSendMessage} className="border-t border-border pt-4 mt-4 space-y-3">
+                {messageError && (
+                  <p className="text-xs text-danger font-semibold bg-danger/10 border border-danger/20 rounded p-2 mb-2">
+                    ⚠️ {messageError}
+                  </p>
+                )}
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-text-secondary">Post Type:</span>
                   <div className="flex gap-1.5">
@@ -441,16 +526,28 @@ export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailP
 
                   return (
                     <div key={member.uid} className="flex items-center gap-3 p-2 rounded-lg border border-border/40 bg-surface/50 hover:bg-surface transition-colors">
-                      <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary text-sm shrink-0">
-                        {mInitials}
-                      </div>
+                      {member.photoURL ? (
+                        <img
+                          src={member.photoURL}
+                          alt={member.name}
+                          className="h-10 w-10 rounded-full object-cover shrink-0"
+                          onError={(e) => {
+                            // Fallback to initials if image URL fails to load
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary text-sm shrink-0">
+                          {mInitials}
+                        </div>
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <p className="font-semibold text-sm text-text-primary truncate">{member.name}</p>
                           {isUserLeader && (
                             <span
                               title="Team Leader"
-                              className="inline-flex items-center justify-center h-4 w-4 rounded bg-amber-500/20 text-amber-500 hover:opacity-100"
+                              className="inline-flex items-center justify-center h-4 w-4 rounded bg-amber-500/20 text-amber-500"
                             >
                               <Crown className="h-3 w-3 fill-amber-500" />
                             </span>
