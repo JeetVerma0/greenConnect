@@ -16,11 +16,11 @@ export function Select({ label, options, className = "", id, ...props }: SelectP
       )}
       <select
         id={selectId}
-        className={`w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary outline-none transition-all duration-300 focus:border-primary/50 focus:bg-[var(--card-hover-bg)] focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-[#0a0f0d] dark:focus:bg-white/[0.04] ${className}`}
+        className={`w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary outline-none transition-all duration-300 focus:border-primary/50 focus:bg-[var(--card-hover-bg)] focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-[#0a0f0d] dark:focus:bg-white/[0.04] [.light_&]:border-border [.light_&]:bg-surface [.light_&]:focus:bg-[var(--card-hover-bg)] ${className}`}
         {...props}
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value} className="bg-surface dark:bg-[#0a0f0d] text-text-primary">
+          <option key={opt.value} value={opt.value} className="bg-surface dark:bg-[#0a0f0d] [.light_&]:bg-surface text-text-primary">
             {opt.label}
           </option>
         ))}

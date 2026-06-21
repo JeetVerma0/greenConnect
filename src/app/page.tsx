@@ -37,21 +37,9 @@ export default function LandingPage() {
             </div>
             <span className="text-base font-bold tracking-tight text-text-primary">GreenConnect</span>
           </div>
-
-          <nav className="hidden md:flex items-center gap-6 text-sm text-text-secondary">
-            <Link href="/map" className="hover:text-text-primary transition-colors">Live Map</Link>
-            <Link href="/reports" className="hover:text-text-primary transition-colors">Issues</Link>
-            <Link href="/teams" className="hover:text-text-primary transition-colors">Cleanup Teams</Link>
-          </nav>
           
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Link href="/login">
-              <Button variant="ghost" size="sm">Log In</Button>
-            </Link>
-            <Link href="/signup">
-              <Button size="sm">Get Started</Button>
-            </Link>
           </div>
         </div>
       </header>
@@ -77,14 +65,14 @@ export default function LandingPage() {
               </p>
               
               <div className="flex flex-wrap gap-3">
-                <Link href="/reports/create">
+                <Link href="/signup">
                   <Button size="md" className="font-semibold">
-                    Report an Issue <ArrowRight className="h-4 w-4" />
+                    Get Started <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
-                <Link href="/teams">
+                <Link href="/login">
                   <Button variant="secondary" size="md">
-                    Join a Team
+                    Log In
                   </Button>
                 </Link>
               </div>
