@@ -8,19 +8,19 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 export function Select({ label, options, className = "", id, ...props }: SelectProps) {
   const selectId = id ?? label?.toLowerCase().replace(/\s+/g, "-");
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       {label && (
-        <label htmlFor={selectId} className="text-sm text-text-secondary">
+        <label htmlFor={selectId} className="text-xs font-semibold uppercase tracking-wider text-text-secondary/70">
           {label}
         </label>
       )}
       <select
         id={selectId}
-        className={`w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-text-primary outline-none focus:border-primary ${className}`}
+        className={`w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary outline-none transition-all duration-300 focus:border-primary/50 focus:bg-[var(--card-hover-bg)] focus:ring-1 focus:ring-primary/20 dark:border-white/10 dark:bg-[#0a0f0d] dark:focus:bg-white/[0.04] ${className}`}
         {...props}
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
+          <option key={opt.value} value={opt.value} className="bg-surface dark:bg-[#0a0f0d] text-text-primary">
             {opt.label}
           </option>
         ))}
@@ -28,3 +28,4 @@ export function Select({ label, options, className = "", id, ...props }: SelectP
     </div>
   );
 }
+

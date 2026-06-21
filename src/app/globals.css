@@ -2,16 +2,85 @@
 @import "leaflet/dist/leaflet.css";
 
 :root {
-  --background: #0b0f0c;
-  --surface: #111715;
-  --card: #151c19;
-  --primary: #22c55e;
-  --primary-dark: #16a34a;
+  --background: #0a0f0d;
+  --surface: #0d1411;
+  --card: #101815;
+  --primary: #10b981; /* Accent environmental green used sparingly */
+  --primary-dark: #059669;
+  --primary-glow: rgba(16, 185, 129, 0.015);
   --warning: #f59e0b;
   --danger: #ef4444;
-  --text-primary: #ffffff;
-  --text-secondary: #a3a3a3;
-  --border: #1f2a25;
+  --text-primary: #f9fafb;
+  --text-secondary: #8892b0;
+  --border: rgba(16, 185, 129, 0.05);
+  --border-strong: rgba(16, 185, 129, 0.1);
+  --bg-inner: #070a09;
+  --card-opacity-bg: rgba(13, 20, 17, 0.4);
+  --glass-bg: rgba(10, 15, 13, 0.75);
+  --glass-card-bg: rgba(16, 24, 21, 0.45);
+  --glow-pulse: rgba(16, 185, 129, 0.015);
+  --card-hover-bg: rgba(16, 185, 129, 0.04);
+  --card-hover-bg-bright: rgba(22, 33, 29, 0.52);
+  --sidebar-bg: rgba(10, 15, 13, 0.75);
+  --sidebar-item-hover: rgba(16, 185, 129, 0.04);
+  --sidebar-item-active: rgba(16, 185, 129, 0.10);
+  --header-bg: rgba(10, 15, 13, 0.75);
+  --map-control-border: rgba(16, 185, 129, 0.08);
+  --map-control-hover-bg: rgba(16, 185, 129, 0.04);
+  --map-panel-bg: rgba(16, 24, 21, 0.85);
+
+  /* Brand Balance Update Additions - Dark Mode Fallbacks */
+  --progress-track-bg: rgba(13, 20, 17, 0.4);
+  --active-filter-bg: rgba(16, 185, 129, 0.12);
+  --active-filter-text: #10b981;
+  --active-filter-border: rgba(16, 185, 129, 0.25);
+  --active-status-bg: #101815;
+  --active-status-text: #10b981;
+  --active-status-border: rgba(16, 185, 129, 0.20);
+  --badge-in-progress-bg: rgba(16, 185, 129, 0.10);
+  --badge-in-progress-text: #10b981;
+  --badge-in-progress-border: rgba(16, 185, 129, 0.20);
+}
+
+.light {
+  --background: #F0F7D6;
+  --surface: #F4F9E4;
+  --card: #F7FBEA;
+  --primary: #10b981;
+  --primary-dark: #059669;
+  --primary-glow: rgba(16, 185, 129, 0.005);
+  --warning: #d97706;
+  --danger: #dc2626;
+  --text-primary: #1F2937;
+  --text-secondary: #55604A;
+  --border: rgba(120, 140, 80, 0.12);
+  --border-strong: rgba(120, 140, 80, 0.24);
+  --bg-inner: #F4F9E4;
+  --card-opacity-bg: rgba(120, 140, 80, 0.04);
+  --glass-bg: rgba(244, 249, 228, 0.85);
+  --glass-card-bg: rgba(247, 251, 234, 0.65);
+  --glow-pulse: rgba(16, 185, 129, 0.01);
+  --card-hover-bg: rgba(16, 185, 129, 0.03);
+  --card-hover-bg-bright: #FAFDF2;
+  --sidebar-bg: #F4F9E4;
+  --sidebar-item-hover: rgba(16, 185, 129, 0.08);
+  --sidebar-item-active: #EAF3C4;
+  --header-bg: #F7FBEA;
+  --map-control-border: rgba(120, 140, 80, 0.16);
+  --map-control-hover-bg: rgba(120, 140, 80, 0.08);
+  --map-panel-bg: rgba(247, 251, 234, 0.92);
+
+  /* Brand Balance Update Additions - Light Mode #EAF3C4 Accents */
+  --progress-track-bg: #EAF3C4;
+  --active-filter-bg: #EAF3C4;
+  --active-filter-text: #1F2937;
+  --active-filter-border: rgba(120, 140, 80, 0.20);
+  --active-status-bg: #EAF3C4;
+  --active-status-text: #1F2937;
+  --active-status-border: rgba(120, 140, 80, 0.20);
+  --badge-in-progress-bg: #EAF3C4;
+  --badge-in-progress-text: #1F2937;
+  --badge-in-progress-border: rgba(120, 140, 80, 0.20);
 }
 
 @theme inline {
@@ -25,6 +94,10 @@
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-bg-inner: var(--bg-inner);
+  --color-card-opacity-bg: var(--card-opacity-bg);
+  --color-card-hover-bg: var(--card-hover-bg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -33,9 +106,155 @@ body {
   background: var(--background);
   color: var(--text-primary);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Smooth theme switching transitions */
+body, 
+body *,
+.glass,
+.glass-card {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Premium Vercel/Linear-style utilities */
+@utility glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+@utility glass-card {
+  background: var(--glass-card-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05);
+}
+
+@utility glass-card-hover {
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+  &:hover {
+    background: var(--card-hover-bg-bright) !important;
+    border-color: rgba(16, 185, 129, 0.4) !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(16, 185, 129, 0.12), 0 0 16px rgba(16, 185, 129, 0.06) !important;
+    transform: translateY(-2px) !important;
+  }
+}
+
+@utility metric-card-hover {
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+  &:hover {
+    background: var(--card-hover-bg-bright) !important;
+    border-color: rgba(16, 185, 129, 0.6) !important;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06), 0 0 0 1.5px rgba(16, 185, 129, 0.2), 0 0 20px rgba(16, 185, 129, 0.1) !important;
+    transform: translateY(-2px) !important;
+  }
+}
+
+@utility interactive-hover {
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+  &:hover {
+    border-color: rgba(16, 185, 129, 0.4) !important;
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.12), 0 0 16px rgba(16, 185, 129, 0.06) !important;
+    transform: translateY(-2px) !important;
+  }
+}
+
+@utility glass-header {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Custom transitions and scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(9, 10, 11, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .leaflet-container {
-  background: var(--surface);
+  background: #F4F3EE !important;
   font-family: inherit;
 }
+
+.map-overlay-panel {
+  background: var(--map-panel-bg) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Custom map marker styles */
+.custom-report-icon-inner {
+  position: relative;
+  background: var(--card);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-size: 16px;
+  border: 1px solid var(--border);
+  margin-top: -17px;
+  margin-left: -17px;
+}
+
+/* Theme-aware Leaflet controls */
+.leaflet-bar {
+  border: 1px solid rgba(44, 62, 45, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.leaflet-bar a {
+  background-color: rgba(251, 250, 247, 0.95) !important;
+  color: #10b981 !important;
+  border-bottom: 1px solid rgba(44, 62, 45, 0.08) !important;
+  transition: all 0.2s ease-out;
+}
+
+.leaflet-bar a:hover {
+  background-color: rgba(242, 240, 234, 0.98) !important;
+  color: #059669 !important;
+  transform: translateY(0) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: var(--card) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 12px !important;
+}
+
+.leaflet-popup-tip {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.leaflet-popup-content {
+  color: var(--text-primary) !important;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+
+
+

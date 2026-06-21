@@ -24,7 +24,7 @@ const userIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
-const getReportIcon = (category: string) => {
+const getReportIcon = (category: string, status: string) => {
   const emojiMap: Record<string, string> = {
     waste: "🗑️",
     water: "💧",
@@ -34,12 +34,19 @@ const getReportIcon = (category: string) => {
   };
   const emoji = emojiMap[category] || "📍";
   
+  const statusColor = status === "resolved" ? "#10b981" : status === "in_progress" ? "#3b82f6" : "#f59e0b";
+  
   return L.divIcon({
     className: "custom-report-icon",
-    html: `<div style="background: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 6px rgba(0,0,0,0.3); font-size: 18px; border: 2px solid #22C55E; margin-top: -16px; margin-left: -16px;">${emoji}</div>`,
-    iconSize: [0, 0], // Size is handled by the div styling to allow centered positioning
+    html: `
+      <div class="custom-report-icon-inner">
+        ${emoji}
+        <span style="position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: ${statusColor}; border: 1.5px solid var(--card); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);"></span>
+      </div>
+    `,
+    iconSize: [0, 0],
     iconAnchor: [0, 0],
-    popupAnchor: [0, -16],
+    popupAnchor: [0, -17],
   });
 };
 
@@ -67,6 +74,7 @@ export default function MapContainer({
   onLocationChange,
 }: MapContainerProps) {
   const center = userLocation ?? { lat: 28.6139, lng: 77.209 };
+  const tileUrl = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
 
   return (
     <LeafletMap
@@ -78,7 +86,7 @@ export default function MapContainer({
       <MapUpdater center={center} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        url={tileUrl}
       />
 
       {userLocation && (
@@ -102,7 +110,7 @@ export default function MapContainer({
           <Circle
             center={[userLocation.lat, userLocation.lng]}
             radius={10000} // 10km radius
-            pathOptions={{ color: "#3B82F6", fillColor: "#3B82F6", fillOpacity: 0.05, weight: 1, dashArray: "5, 5" }}
+            pathOptions={{ color: "#3B82F6", fillColor: "#3B82F6", fillOpacity: 0.03, weight: 1, dashArray: "5, 5" }}
           />
         </>
       )}
@@ -111,15 +119,15 @@ export default function MapContainer({
         <Marker
           key={report.id}
           position={[report.latitude, report.longitude]}
-          icon={getReportIcon(report.category)}
+          icon={getReportIcon(report.category, report.status)}
           eventHandlers={{
             click: () => onSelectReport(report),
           }}
         >
           <Popup>
-            <div className="text-center">
-              <strong className="block mb-1">{report.title}</strong>
-              <span className="text-xs text-text-secondary capitalize">{report.category} · {report.status}</span>
+            <div className="text-center p-0.5">
+              <strong className="block text-xs font-bold text-text-primary mb-1">{report.title}</strong>
+              <span className="text-[10px] text-text-secondary capitalize">{report.category} · {report.status.replace("_", " ")}</span>
             </div>
           </Popup>
         </Marker>
@@ -127,3 +135,4 @@ export default function MapContainer({
     </LeafletMap>
   );
 }
+

@@ -4,6 +4,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
   padding?: "sm" | "md" | "lg";
+  hoverable?: boolean;
 }
 
 const paddingMap = {
@@ -12,13 +13,16 @@ const paddingMap = {
   lg: "p-6",
 };
 
-export function Card({ children, className = "", padding = "md", ...props }: CardProps) {
+export function Card({ children, className = "", padding = "md", hoverable = true, ...props }: CardProps) {
   return (
     <div
-      className={`rounded-xl border border-border bg-card ${paddingMap[padding]} ${className}`}
+      className={`rounded-2xl glass-card ${paddingMap[padding]} ${
+        hoverable ? "glass-card-hover" : ""
+      } ${className}`}
       {...props}
     >
       {children}
     </div>
   );
 }
+

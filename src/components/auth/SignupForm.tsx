@@ -44,6 +44,7 @@ export function SignupForm() {
           onChange={(e) => setName(e.target.value)}
           required
           placeholder="Your name"
+          className="border-border dark:border-white/10 bg-surface dark:bg-white/[0.02] focus:bg-card dark:focus:bg-white/[0.04] focus:border-primary/50"
         />
         <Input
           label="Email"
@@ -52,6 +53,7 @@ export function SignupForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           placeholder="you@example.com"
+          className="border-border dark:border-white/10 bg-surface dark:bg-white/[0.02] focus:bg-card dark:focus:bg-white/[0.04] focus:border-primary/50"
         />
         <Input
           label="Password"
@@ -61,6 +63,7 @@ export function SignupForm() {
           required
           minLength={6}
           placeholder="At least 6 characters"
+          className="border-border dark:border-white/10 bg-surface dark:bg-white/[0.02] focus:bg-card dark:focus:bg-white/[0.04] focus:border-primary/50"
         />
         {error && <p className="text-sm text-danger">{error}</p>}
         <Button type="submit" disabled={loading} className="w-full">

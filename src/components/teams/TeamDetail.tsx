@@ -351,7 +351,7 @@ export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailP
             {/* If the current user is not a member, block feed view with premium overlay */}
             {!isMember ? (
               <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-card/85 backdrop-blur-[6px] p-6 text-center">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4 animate-pulse">
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4 border border-primary/20">
                   <Lock className="h-7 w-7" />
                 </div>
                 <h3 className="text-lg font-bold text-text-primary">Communication Locked</h3>

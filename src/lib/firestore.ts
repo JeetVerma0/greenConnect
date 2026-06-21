@@ -457,3 +457,23 @@ export async function updateUserProfile(
     ...data,
   });
 }
+
+export function subscribeReports(
+  callback: (reports: Report[]) => void,
+  errorCallback?: (error: Error) => void
+) {
+  const q = query(collection(db, "reports"), orderBy("createdAt", "desc"));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const reports = snap.docs.map((d) => parseReport(d.id, d.data()));
+      callback(reports.length ? reports : MOCK_REPORTS);
+    },
+    (err) => {
+      console.error("Reports subscription failed:", err);
+      // Fallback to mock data so the app continues to display values locally
+      callback(MOCK_REPORTS);
+      if (errorCallback) errorCallback(err);
+    }
+  );
+}
