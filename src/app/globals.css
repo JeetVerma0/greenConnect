@@ -255,6 +255,27 @@ body *,
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* Glowing pulse animation for selected map markers */
+@keyframes marker-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.75), 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(16, 185, 129, 0), 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0), 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+}
+
+.pulse-glowing {
+  animation: marker-pulse 1.2s ease-out 3; /* Pulse 3 times temporarily */
+  border-color: #10b981 !important;
+  border-width: 1.5px !important;
+  transform: scale(1.1) !important;
+  transition: all 0.3s ease-in-out;
+}
+
 
 
 

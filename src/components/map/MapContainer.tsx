@@ -24,7 +24,7 @@ const userIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
-const getReportIcon = (category: string, status: string) => {
+const getReportIcon = (category: string, status: string, isFocused?: boolean) => {
   const emojiMap: Record<string, string> = {
     waste: "🗑️",
     water: "💧",
@@ -35,11 +35,12 @@ const getReportIcon = (category: string, status: string) => {
   const emoji = emojiMap[category] || "📍";
   
   const statusColor = status === "verified_resolution" ? "#10b981" : status === "in_progress" ? "#3b82f6" : "#f59e0b";
+  const focusClass = isFocused ? "pulse-glowing" : "";
   
   return L.divIcon({
     className: "custom-report-icon",
     html: `
-      <div class="custom-report-icon-inner">
+      <div class="custom-report-icon-inner ${focusClass}">
         ${emoji}
         <span style="position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; background: ${statusColor}; border: 1.5px solid var(--card); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);"></span>
       </div>
@@ -56,13 +57,27 @@ interface MapContainerProps {
   userLocation: { lat: number; lng: number } | null;
   onSelectReport: (report: Report) => void;
   onLocationChange?: (location: { lat: number; lng: number }) => void;
+  selectedReport?: Report | null;
 }
 
-function MapUpdater({ center }: { center: { lat: number; lng: number } }) {
+function MapUpdater({ center, selectedReport }: { center: { lat: number; lng: number }; selectedReport?: Report | null }) {
   const map = useMap();
+
   useEffect(() => {
-    map.setView([center.lat, center.lng], map.getZoom());
-  }, [center.lat, center.lng, map]);
+    if (!selectedReport) {
+      map.setView([center.lat, center.lng], map.getZoom());
+    }
+  }, [center.lat, center.lng, selectedReport, map]);
+
+  useEffect(() => {
+    if (selectedReport) {
+      map.flyTo([selectedReport.latitude, selectedReport.longitude], 16, {
+        animate: true,
+        duration: 1.5,
+      });
+    }
+  }, [selectedReport, map]);
+
   return null;
 }
 
@@ -72,6 +87,7 @@ export default function MapContainer({
   userLocation,
   onSelectReport,
   onLocationChange,
+  selectedReport,
 }: MapContainerProps) {
   const center = userLocation ?? { lat: 28.6139, lng: 77.209 };
   const tileUrl = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
@@ -83,7 +99,7 @@ export default function MapContainer({
       className="h-full w-full"
       scrollWheelZoom
     >
-      <MapUpdater center={center} />
+      <MapUpdater center={center} selectedReport={selectedReport} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url={tileUrl}
@@ -117,9 +133,16 @@ export default function MapContainer({
 
       {reports.map((report) => (
         <Marker
-          key={report.id}
+          key={`${report.id}-${selectedReport?.id === report.id}`}
+          ref={(marker) => {
+            if (marker && selectedReport?.id === report.id) {
+              if (!marker.isPopupOpen()) {
+                marker.openPopup();
+              }
+            }
+          }}
           position={[report.latitude, report.longitude]}
-          icon={getReportIcon(report.category, report.status)}
+          icon={getReportIcon(report.category, report.status, selectedReport?.id === report.id)}
           eventHandlers={{
             click: () => onSelectReport(report),
           }}
