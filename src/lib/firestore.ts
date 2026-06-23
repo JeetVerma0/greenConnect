@@ -19,7 +19,8 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "./firebase";
 import type { UserProfile } from "@/types/user";
-import type { Report, ReportCategory, ReportStatus } from "@/types/report";
+import type { Report, ReportCategory, ReportStatus, ProgressUpdate } from "@/types/report";
+import type { Mission } from "@/types/mission";
 import type { Team, TeamCategory, TeamMessage } from "@/types/team";
 import { computeBadges } from "@/utils/badges";
 import { DEFAULT_LOCATION, ECO_POINTS } from "@/utils/constants";
@@ -61,11 +62,17 @@ function parseReport(id: string, data: Record<string, unknown>): Report {
     imageAfter: data.imageAfter as string | undefined,
     latitude: (data.latitude as number) ?? 0,
     longitude: (data.longitude as number) ?? 0,
-    status: (data.status as ReportStatus) ?? "pending",
+    status: (data.status as ReportStatus) ?? "open",
     verificationCount: (data.verificationCount as number) ?? 0,
     createdBy: (data.createdBy as string) ?? "",
     assignedTeam: data.assignedTeam as string | undefined,
+    linkedMission: data.linkedMission as string | undefined,
+    rejectedBy: (data.rejectedBy as string[]) ?? [],
     createdAt: toDate(data.createdAt as Timestamp),
+    progressUpdates: (data.progressUpdates as any[])?.map(u => ({
+      ...u,
+      createdAt: toDate(u.createdAt as Timestamp)
+    })) ?? [],
   };
 }
 
@@ -205,10 +212,6 @@ export async function createReport(
   data: Omit<Report, "id" | "createdAt" | "verificationCount" | "status">,
   userId: string
 ): Promise<Report> {
-  const teams = await getTeams();
-  const matches = findMatchingTeams(data, teams);
-  const assignedTeam = matches[0]?.id;
-
   const docRef = await addDoc(collection(db, "reports"), {
     title: data.title,
     description: data.description,
@@ -219,9 +222,10 @@ export async function createReport(
     latitude: data.latitude,
     longitude: data.longitude,
     createdBy: data.createdBy,
-    status: "pending",
+    status: "open",
     verificationCount: 0,
-    assignedTeam: assignedTeam ?? null,
+    assignedTeam: null,
+    rejectedBy: [],
     createdAt: serverTimestamp(),
   });
 
@@ -234,45 +238,185 @@ export async function createReport(
   return {
     ...data,
     id: docRef.id,
-    status: "pending",
+    status: "open",
     verificationCount: 0,
-    assignedTeam,
+    assignedTeam: undefined,
+    linkedMission: undefined,
+    rejectedBy: [],
     createdAt: new Date(),
+    progressUpdates: [],
   };
 }
 
-export async function verifyReport(reportId: string, userId: string) {
+export async function rejectReport(reportId: string, teamId: string) {
+  const reportRef = doc(db, "reports", reportId);
+  await updateDoc(reportRef, {
+    rejectedBy: arrayUnion(teamId)
+  });
+}
+
+export async function createMission(
+  data: Omit<Mission, "id" | "createdAt" | "joinedVolunteers" | "status" | "createdBy">,
+  userId: string
+): Promise<Mission> {
+  const docRef = await addDoc(collection(db, "missions"), {
+    ...data,
+    joinedVolunteers: [userId],
+    status: "in_progress",
+    createdAt: serverTimestamp(),
+    createdBy: userId,
+  });
+
+  await updateDoc(doc(db, "reports", data.reportId), {
+    status: "in_progress",
+    assignedTeam: data.teamId,
+    linkedMission: docRef.id,
+  });
+
+  return {
+    ...data,
+    id: docRef.id,
+    joinedVolunteers: [userId],
+    status: "in_progress",
+    createdAt: new Date(),
+    createdBy: userId,
+  };
+}
+
+export async function getTeamMissions(teamId: string): Promise<Mission[]> {
+  const snap = await getDocs(query(collection(db, "missions"), where("teamId", "==", teamId), orderBy("createdAt", "desc")));
+  return snap.docs.map(d => {
+    const data = d.data();
+    return {
+      id: d.id,
+      ...data,
+      createdAt: toDate(data.createdAt),
+    } as Mission;
+  });
+}
+
+export async function getMissionById(id: string): Promise<Mission | null> {
+  const snap = await getDoc(doc(db, "missions", id));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  return {
+    id: snap.id,
+    ...data,
+    createdAt: toDate(data.createdAt),
+  } as Mission;
+}
+
+export async function joinMission(missionId: string, userId: string) {
+  await updateDoc(doc(db, "missions", missionId), {
+    joinedVolunteers: arrayUnion(userId)
+  });
+}
+
+export async function createMissionMessage(
+  missionId: string,
+  senderId: string,
+  senderName: string,
+  content: string
+) {
+  const docRef = await addDoc(collection(db, "missions", missionId, "messages"), {
+    missionId,
+    senderId,
+    senderName,
+    content,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+}
+
+export function subscribeMissionMessages(
+  missionId: string,
+  callback: (messages: any[]) => void
+) {
+  const q = query(collection(db, "missions", missionId, "messages"), orderBy("createdAt", "asc"));
+  return onSnapshot(q, (snap) => {
+    const messages = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        createdAt: toDate(data.createdAt),
+      };
+    });
+    callback(messages);
+  });
+}
+
+export async function assignReportToTeam(reportId: string, teamId: string) {
+  const reportRef = doc(db, "reports", reportId);
+  const snap = await getDoc(reportRef);
+  if (!snap.exists()) throw new Error("Report not found");
+
+  await updateDoc(reportRef, {
+    assignedTeam: teamId,
+    status: "assigned"
+  });
+}
+
+export async function addProgressUpdate(
+  reportId: string,
+  userId: string,
+  photoURL: string,
+  description: string,
+  progressNotes?: string
+) {
+  const updateId = doc(collection(db, "reports")).id; // generate ID
+  const progressUpdate = {
+    id: updateId,
+    reportId,
+    photoURL,
+    description,
+    progressNotes: progressNotes ?? "",
+    createdAt: new Date(),
+    createdBy: userId,
+  };
+
+  await updateDoc(doc(db, "reports", reportId), {
+    status: "in_progress",
+    progressUpdates: arrayUnion(progressUpdate)
+  });
+}
+
+export async function verifyReport(reportId: string, userId: string, type: "progress" | "resolution" = "resolution") {
   const existing = await getDocs(
     query(
       collection(db, "verifications"),
       where("reportId", "==", reportId),
-      where("userId", "==", userId)
+      where("userId", "==", userId),
+      where("type", "==", type)
     )
   );
-  if (!existing.empty) throw new Error("You already verified this report");
+  if (!existing.empty) throw new Error(`You already verified the ${type} of this report`);
 
   await addDoc(collection(db, "verifications"), {
     reportId,
     userId,
-    vote: "confirm",
+    type,
     createdAt: serverTimestamp(),
   });
 
-  const reportRef = doc(db, "reports", reportId);
-  const reportSnap = await getDoc(reportRef);
-  if (!reportSnap.exists()) throw new Error("Report not found");
+  if (type === "resolution") {
+    const reportRef = doc(db, "reports", reportId);
+    const reportSnap = await getDoc(reportRef);
+    if (!reportSnap.exists()) throw new Error("Report not found");
 
-  const newCount = ((reportSnap.data().verificationCount as number) ?? 0) + 1;
-  const updates: Record<string, unknown> = { verificationCount: newCount };
-  if (newCount >= 3 && reportSnap.data().status === "pending") {
-    updates.status = "under_review";
+    const newCount = ((reportSnap.data().verificationCount as number) ?? 0) + 1;
+    const updates: Record<string, unknown> = { verificationCount: newCount };
+    if (newCount >= 10 && reportSnap.data().status === "awaiting_verification") {
+      updates.status = "verified_resolution";
+    }
+
+    await updateDoc(reportRef, updates);
   }
 
-  await updateDoc(reportRef, updates);
   await updateDoc(doc(db, "users", userId), {
     verificationsCount: increment(1),
   });
-  await addEcoPoints(userId, ECO_POINTS.VERIFY);
+  await addEcoPoints(userId, type === "resolution" ? ECO_POINTS.VERIFY_RESOLUTION : ECO_POINTS.VERIFY_PROGRESS);
   await syncUserBadges(userId);
 }
 
@@ -282,7 +426,7 @@ export async function resolveReport(
   imageAfterUrl: string
 ) {
   await updateDoc(doc(db, "reports", reportId), {
-    status: "resolved",
+    status: "awaiting_verification",
     imageAfter: imageAfterUrl,
   });
 
@@ -354,7 +498,7 @@ export async function getUserReports(userId: string): Promise<Report[]> {
 
 export async function getUserResolvedReports(userId: string): Promise<Report[]> {
   const all = await getReports();
-  return all.filter((r) => r.status === "resolved" && r.createdBy === userId);
+  return all.filter((r) => r.status === "verified_resolution" && r.createdBy === userId);
 }
 
 export async function getMultipleUserProfiles(uids: string[]): Promise<UserProfile[]> {

@@ -475,11 +475,11 @@ export function ProfileContent() {
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-xs font-bold text-text-primary truncate leading-tight">{report.title}</p>
                       <span className={`inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                        report.status === "resolved"
+                        report.status === "verified_resolution"
                           ? "bg-primary/10 text-primary border-primary/20"
                           : "bg-warning/10 text-warning border-warning/20"
                       }`}>
-                        {report.status === "resolved" ? "Resolved" : "Pending"}
+                        {report.status === "verified_resolution" ? "Verified" : "Open"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-text-secondary border-t border-border pt-2">

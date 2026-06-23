@@ -18,17 +18,20 @@ export const TEAM_CATEGORIES = [
 
 export const REPORT_STATUS_FILTERS = [
   { value: "all", label: "All" },
-  { value: "pending", label: "Pending" },
-  { value: "under_review", label: "Under Review" },
+  { value: "open", label: "Open" },
+  { value: "assigned", label: "Assigned" },
   { value: "in_progress", label: "In Progress" },
-  { value: "resolved", label: "Resolved" },
+  { value: "awaiting_verification", label: "Awaiting Verification" },
+  { value: "verified_resolution", label: "Verified Resolution" },
 ] as const;
 
 export const DEFAULT_LOCATION = { lat: 28.6139, lng: 77.209 };
 
 export const ECO_POINTS = {
-  REPORT: 10,
-  VERIFY: 5,
+  REPORT: 20,
+  VERIFY_PROGRESS: 5,
+  VERIFY_RESOLUTION: 10,
+  PARTICIPATE_MISSION: 30, // Joining a team or cleanup
   RESOLVE: 50,
   CREATE_TEAM: 25,
 } as const;

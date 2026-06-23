@@ -1,4 +1,9 @@
-export type ReportStatus = "pending" | "under_review" | "in_progress" | "resolved";
+export type ReportStatus =
+  | "open"
+  | "assigned"
+  | "in_progress"
+  | "awaiting_verification"
+  | "verified_resolution";
 
 export type ReportCategory =
   | "waste"
@@ -14,12 +19,32 @@ export interface Report {
   category: ReportCategory;
   severity: number;
   imageBefore?: string;
-  imageAfter?: string;
+  imageAfter?: string; // Kept for backwards compatibility or final resolution image
   latitude: number;
   longitude: number;
   status: ReportStatus;
-  verificationCount: number;
+  verificationCount: number; // For resolution verification
   createdBy: string;
   assignedTeam?: string;
+  linkedMission?: string;
+  rejectedBy?: string[];
+  createdAt: Date;
+  progressUpdates?: ProgressUpdate[];
+}
+
+export interface ProgressUpdate {
+  id: string;
+  reportId: string;
+  photoURL: string;
+  description: string;
+  progressNotes?: string;
+  createdAt: Date;
+  createdBy: string;
+}
+
+export interface Verification {
+  userId: string;
+  reportId: string;
+  type: "progress" | "resolution";
   createdAt: Date;
 }

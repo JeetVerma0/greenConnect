@@ -30,9 +30,11 @@ const CATEGORIES = [
 
 const STATUSES = [
   { value: "all", label: "All Statuses" },
-  { value: "pending", label: "Pending" },
+  { value: "open", label: "Open" },
+  { value: "assigned", label: "Assigned" },
   { value: "in_progress", label: "In Progress" },
-  { value: "resolved", label: "Resolved" },
+  { value: "awaiting_verification", label: "Review" },
+  { value: "verified_resolution", label: "Verified" },
 ];
 
 export function MapView({ reports, teams }: MapViewProps) {

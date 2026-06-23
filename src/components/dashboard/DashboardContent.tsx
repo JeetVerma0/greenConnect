@@ -29,9 +29,9 @@ interface DashboardContentProps {
 export function DashboardContent({ reports }: DashboardContentProps) {
   const { profile } = useAuth();
 
-  const activeReports = reports.filter((r) => r.status !== "resolved").length;
-  const resolvedReports = reports.filter((r) => r.status === "resolved").length;
-  const nearbyAlerts = reports.filter((r) => r.status === "pending").slice(0, 3);
+  const activeReports = reports.filter((r) => r.status !== "verified_resolution").length;
+  const resolvedReports = reports.filter((r) => r.status === "verified_resolution").length;
+  const nearbyAlerts = reports.filter((r) => r.status === "open").slice(0, 3);
 
   return (
     <div className="space-y-8 p-6 lg:p-8 max-w-6xl mx-auto pb-16">

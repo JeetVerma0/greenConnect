@@ -68,7 +68,7 @@ export function AuditVerificationContent() {
   }, []);
 
   // Filter only resolved reports directly from single source of truth
-  const resolvedReports = reports.filter((r) => r.status === "resolved");
+  const resolvedReports = reports.filter((r) => r.status === "verified_resolution");
 
   // Derive all statistics dynamically from live reports state
   const verifiedReportsCount = resolvedReports.length;
@@ -225,7 +225,7 @@ export function AuditVerificationContent() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <CategoryBadge category={item.category} />
-                          <StatusBadge status="resolved" />
+                          <StatusBadge status="verified_resolution" />
                         </div>
                         <h3 className="font-bold text-lg text-text-primary mt-1.5 leading-tight">
                           {item.title}

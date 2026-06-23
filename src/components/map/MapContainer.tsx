@@ -34,7 +34,7 @@ const getReportIcon = (category: string, status: string) => {
   };
   const emoji = emojiMap[category] || "📍";
   
-  const statusColor = status === "resolved" ? "#10b981" : status === "in_progress" ? "#3b82f6" : "#f59e0b";
+  const statusColor = status === "verified_resolution" ? "#10b981" : status === "in_progress" ? "#3b82f6" : "#f59e0b";
   
   return L.divIcon({
     className: "custom-report-icon",

@@ -15,7 +15,12 @@ import {
   Calendar,
   LogOut,
   UserPlus,
+  Inbox,
+  Target,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
+import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { CategoryBadge } from "@/components/ui/Badge";
@@ -26,9 +31,16 @@ import {
   subscribeTeamMessages,
   joinTeam,
   leaveTeam,
+  subscribeReports,
+  getTeamMissions,
+  rejectReport,
+  createMission,
 } from "@/lib/firestore";
 import type { Team, TeamMessage } from "@/types/team";
 import type { UserProfile } from "@/types/user";
+import type { Report } from "@/types/report";
+import type { Mission } from "@/types/mission";
+import { distanceInKm } from "@/utils/distance";
 
 interface TeamDetailProps {
   team: Team;
@@ -103,6 +115,22 @@ export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailP
   const [actionLoading, setActionLoading] = useState(false);
   const [messageError, setMessageError] = useState("");
 
+  const [activeTab, setActiveTab] = useState<"hub" | "inbox" | "missions">("hub");
+  const [incomingReports, setIncomingReports] = useState<Report[]>([]);
+  const [missions, setMissions] = useState<Mission[]>([]);
+
+  // Mission Creation Form State
+  const [showReportSelector, setShowReportSelector] = useState(false);
+  const [showCreateMissionFor, setShowCreateMissionFor] = useState<Report | null>(null);
+  const [missionForm, setMissionForm] = useState({
+    title: "",
+    description: "",
+    date: "",
+    startTime: "",
+    volunteersNeeded: 5,
+    expectedDuration: 2,
+  });
+
   // Robust membership checks: check both direct team members list and profile joinedTeams array
   const isMember =
     (firebaseUser && team.members?.includes(firebaseUser.uid)) ||
@@ -153,6 +181,75 @@ export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailP
 
     return () => unsubscribe();
   }, [team.id, isMember]);
+
+  // Load incoming reports and team missions
+  useEffect(() => {
+    if (team.id.startsWith("mock-")) return;
+
+    const unsubReports = subscribeReports((allReports) => {
+      const incoming = allReports.filter(r => 
+        (
+          (r.status === "open" && !r.rejectedBy?.includes(team.id)) ||
+          (r.status === "assigned" && r.assignedTeam === team.id)
+        ) &&
+        !r.linkedMission
+      );
+      setIncomingReports(incoming);
+    });
+
+    const loadMissions = async () => {
+      try {
+        const tMissions = await getTeamMissions(team.id);
+        setMissions(tMissions);
+      } catch (err) {
+        console.error("Failed to load missions", err);
+      }
+    };
+    loadMissions();
+
+    return () => unsubReports();
+  }, [team.id]);
+
+  const handleRejectReport = async (reportId: string) => {
+    if (team.id.startsWith("mock-")) return;
+    setActionLoading(true);
+    try {
+      await rejectReport(reportId, team.id);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCreateMission = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!firebaseUser || !showCreateMissionFor || team.id.startsWith("mock-")) return;
+    
+    setActionLoading(true);
+    try {
+      const newMission = await createMission({
+        title: missionForm.title,
+        description: missionForm.description,
+        date: missionForm.date,
+        startTime: missionForm.startTime,
+        location: `Near ${showCreateMissionFor.latitude.toFixed(3)}, ${showCreateMissionFor.longitude.toFixed(3)}`,
+        reportId: showCreateMissionFor.id,
+        teamId: team.id,
+        category: team.category,
+        volunteersNeeded: Number(missionForm.volunteersNeeded)
+      }, firebaseUser.uid);
+      
+      setMissions(prev => [newMission, ...prev]);
+      setShowCreateMissionFor(null);
+      setMissionForm({ title: "", description: "", date: "", startTime: "", volunteersNeeded: 5, expectedDuration: 2 });
+      setActiveTab("missions");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handleJoin = async () => {
     if (!firebaseUser) return;
@@ -322,31 +419,59 @@ export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailP
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
         {/* Main Feed Container (Columns 1 & 2) */}
         <div className="lg:col-span-2 space-y-4">
-          <Card padding="lg" className="flex flex-col h-[600px] relative overflow-hidden border-border bg-card">
-            <div className="flex items-center justify-between border-b border-border pb-4 mb-4">
-              <h2 className="font-semibold text-lg flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-primary" />
-                Team Hub
-              </h2>
-              {/* Feed Filters */}
-              {isMember && (
-                <div className="flex gap-1.5 overflow-x-auto text-xs">
-                  {(["all", "chat", "alert", "campaign"] as const).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setFilter(t)}
-                      className={`rounded-full px-3 py-1 font-medium capitalize border transition-all ${
-                        filter === t
-                          ? "bg-primary text-background border-primary"
-                          : "bg-surface border-border text-text-secondary hover:text-text-primary"
-                      }`}
-                    >
-                      {t === "all" ? "All Feed" : t + "s"}
-                    </button>
-                  ))}
+          <div className="flex gap-1 overflow-x-auto border-b border-border pb-0.5 scrollbar-none mb-2">
+            {(["hub", "inbox", "missions"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2.5 text-xs font-semibold tracking-wide transition-all border-b-2 ${
+                  activeTab === tab
+                    ? "text-primary border-primary font-semibold"
+                    : "text-text-secondary border-transparent hover:text-text-primary"
+                }`}
+              >
+                {tab === "hub" ? "Team Hub" : tab === "inbox" ? `Incoming Reports (${incomingReports.length})` : "Active Missions"}
+              </button>
+            ))}
+          </div>
+
+          <Card padding="lg" className="flex flex-col min-h-[600px] relative overflow-hidden border-border bg-card">
+            {activeTab === "hub" && (
+              <>
+                <div className="flex items-center justify-between border-b border-border pb-4 mb-4">
+                  <h2 className="font-semibold text-lg flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    Team Hub
+                  </h2>
+                  <div className="flex items-center gap-4">
+                    {/* Feed Filters */}
+                    {isMember && (
+                      <>
+                        <Button 
+                          size="sm" 
+                          onClick={() => { setShowReportSelector(true); setActiveTab("inbox"); }}
+                        >
+                          Create Mission
+                        </Button>
+                        <div className="flex gap-1.5 overflow-x-auto text-xs hidden sm:flex">
+                          {(["all", "chat", "alert", "campaign"] as const).map((t) => (
+                            <button
+                              key={t}
+                              onClick={() => setFilter(t)}
+                              className={`rounded-full px-3 py-1 font-medium capitalize border transition-all ${
+                                filter === t
+                                  ? "bg-primary text-background border-primary"
+                                  : "bg-surface border-border text-text-secondary hover:text-text-primary"
+                              }`}
+                            >
+                              {t === "all" ? "All Feed" : t + "s"}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
 
             {/* If the current user is not a member, block feed view with premium overlay */}
             {!isMember ? (
@@ -497,6 +622,119 @@ export function TeamDetail({ team: initialTeam, onBack, onRefresh }: TeamDetailP
                 </div>
               </form>
             )}
+            </>
+            )}
+
+            {/* TEAM INBOX TAB */}
+            {activeTab === "inbox" && (
+              <div className="flex-1 overflow-y-auto space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-4 mb-4">
+                  <h2 className="font-semibold text-lg flex items-center gap-2">
+                    <Inbox className="h-5 w-5 text-primary" />
+                    Incoming Reports
+                  </h2>
+                </div>
+                {!isMember ? (
+                   <p className="text-sm text-text-secondary text-center py-8">Join the team to view incoming reports.</p>
+                ) : showCreateMissionFor ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-lg">Create Mission</h3>
+                      <Button variant="ghost" size="sm" onClick={() => { setShowCreateMissionFor(null); setShowReportSelector(false); }}>Cancel</Button>
+                    </div>
+                    <form onSubmit={handleCreateMission} className="space-y-4">
+                      <div>
+                        <label className="text-xs font-semibold text-text-secondary">Mission Title</label>
+                        <input type="text" value={missionForm.title} onChange={e => setMissionForm({...missionForm, title: e.target.value})} required className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-primary" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-text-secondary">Mission Description</label>
+                        <textarea value={missionForm.description} onChange={e => setMissionForm({...missionForm, description: e.target.value})} required className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-primary" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-xs font-semibold text-text-secondary">Date</label>
+                          <input type="date" value={missionForm.date} onChange={e => setMissionForm({...missionForm, date: e.target.value})} required className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-primary" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-text-secondary">Start Time</label>
+                          <input type="time" value={missionForm.startTime} onChange={e => setMissionForm({...missionForm, startTime: e.target.value})} required className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-primary" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-text-secondary">Volunteers Needed</label>
+                        <input type="number" min="1" value={missionForm.volunteersNeeded} onChange={e => setMissionForm({...missionForm, volunteersNeeded: Number(e.target.value)})} required className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-primary" />
+                      </div>
+                      <Button type="submit" disabled={actionLoading} className="w-full">Create Mission</Button>
+                    </form>
+                  </div>
+                ) : incomingReports.length === 0 ? (
+                  <p className="text-sm text-text-secondary text-center py-8">No incoming reports available.</p>
+                ) : (
+                  incomingReports.map(report => (
+                    <div key={report.id} className="border border-border rounded-lg p-4 bg-surface hover:border-primary/30 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="font-bold text-text-primary">{report.title}</h3>
+                          <p className="text-xs text-text-secondary mt-1">{report.description}</p>
+                        </div>
+                        <CategoryBadge category={report.category} />
+                      </div>
+                      <div className="flex items-center gap-4 text-[10px] text-text-secondary my-3 font-semibold">
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3"/> {distanceInKm({lat: report.latitude, lng: report.longitude}, {lat: team.latitude, lng: team.longitude}).toFixed(1)} km away</span>
+                        <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3"/> Severity {report.severity}</span>
+                      </div>
+                      <div className="flex gap-2 justify-end mt-4 pt-3 border-t border-border">
+                        <Button variant="secondary" size="sm" onClick={() => handleRejectReport(report.id)} disabled={actionLoading}>
+                          <XCircle className="h-4 w-4 mr-1" /> Reject
+                        </Button>
+                        <Button size="sm" onClick={() => { setShowCreateMissionFor(report); setMissionForm({...missionForm, title: `Cleanup: ${report.title}`, description: `Mission to address: ${report.description}`}); }}>
+                          <CheckCircle className="h-4 w-4 mr-1" /> Choose Report
+                        </Button>
+                        <Link href={`/reports/${report.id}`} target="_blank">
+                           <Button variant="ghost" size="sm">Details</Button>
+                        </Link>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* MISSIONS TAB */}
+            {activeTab === "missions" && (
+              <div className="flex-1 overflow-y-auto space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-4 mb-4">
+                  <h2 className="font-semibold text-lg flex items-center gap-2">
+                    <Target className="h-5 w-5 text-primary" />
+                    Active Missions
+                  </h2>
+                </div>
+                {missions.length === 0 ? (
+                  <p className="text-sm text-text-secondary text-center py-8">No missions created yet. Accept incoming reports to start missions.</p>
+                ) : (
+                  missions.map(mission => (
+                    <div key={mission.id} className="border border-border rounded-lg p-4 bg-surface hover:border-primary/30 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-bold text-text-primary">{mission.title}</h3>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-primary border border-primary/20 px-2 py-0.5 rounded bg-primary/10">{mission.status}</span>
+                      </div>
+                      <p className="text-xs text-text-secondary mb-3">{mission.description}</p>
+                      <div className="grid grid-cols-2 gap-2 text-[10px] text-text-secondary font-semibold">
+                         <span className="flex items-center gap-1"><Calendar className="h-3 w-3"/> {mission.date} at {mission.startTime}</span>
+                         <span className="flex items-center gap-1"><Users className="h-3 w-3"/> {mission.joinedVolunteers.length} / {mission.volunteersNeeded} Volunteers</span>
+                      </div>
+                      <div className="flex gap-2 justify-end mt-4 pt-3 border-t border-border">
+                        <Link href={`/missions/${mission.id}`}>
+                           <Button size="sm">View Mission Page</Button>
+                        </Link>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
           </Card>
         </div>
 

@@ -1,15 +1,17 @@
 const statusStyles: Record<string, string> = {
-  pending: "bg-warning/10 text-warning border-warning/20 backdrop-blur-sm",
-  under_review: "bg-blue-500/10 text-blue-400 border-blue-500/20 backdrop-blur-sm",
+  open: "bg-warning/10 text-warning border-warning/20 backdrop-blur-sm",
+  assigned: "bg-blue-500/10 text-blue-400 border-blue-500/20 backdrop-blur-sm",
   in_progress: "bg-[var(--badge-in-progress-bg)] text-[var(--badge-in-progress-text)] border-[var(--badge-in-progress-border)] dark:bg-primary/10 dark:text-primary dark:border-primary/20 backdrop-blur-sm",
-  resolved: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20 backdrop-blur-sm",
+  awaiting_verification: "bg-purple-500/10 text-purple-400 border-purple-500/20 backdrop-blur-sm",
+  verified_resolution: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20 backdrop-blur-sm",
 };
 
 const statusLabels: Record<string, string> = {
-  pending: "Pending",
-  under_review: "Under Review",
+  open: "Open",
+  assigned: "Assigned",
   in_progress: "In Progress",
-  resolved: "Resolved",
+  awaiting_verification: "Awaiting Verification",
+  verified_resolution: "Verified Resolution",
 };
 
 export function StatusBadge({ status }: { status: string }) {

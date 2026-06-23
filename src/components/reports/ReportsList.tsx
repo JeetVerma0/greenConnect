@@ -25,9 +25,9 @@ export function ReportsList() {
 
   // Calculate statistics
   const total = reports.length;
-  const pending = reports.filter((r) => r.status === "pending").length;
-  const inProgress = reports.filter((r) => r.status === "in_progress" || r.status === "under_review").length;
-  const resolved = reports.filter((r) => r.status === "resolved").length;
+  const pending = reports.filter((r) => r.status === "open").length;
+  const inProgress = reports.filter((r) => r.status === "assigned" || r.status === "in_progress" || r.status === "awaiting_verification").length;
+  const resolved = reports.filter((r) => r.status === "verified_resolution").length;
 
   // Filter & Sort Logic
   const filtered = reports
@@ -66,9 +66,9 @@ export function ReportsList() {
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {[
           { label: "Total Reports", value: total, icon: FileText, color: "text-[#8892b0]" },
-          { label: "Pending Review", value: pending, icon: AlertCircle, color: "text-warning" },
+          { label: "Open Reports", value: pending, icon: AlertCircle, color: "text-warning" },
           { label: "In Progress", value: inProgress, icon: SlidersHorizontal, color: "text-blue-400" },
-          { label: "Resolved Proofs", value: resolved, icon: CheckCircle2, color: "text-primary" },
+          { label: "Verified Proofs", value: resolved, icon: CheckCircle2, color: "text-primary" },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label} padding="sm" className="bg-card-opacity-bg border border-border transition-all">
             <div className="flex items-center justify-between">
